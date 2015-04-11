@@ -1,0 +1,116 @@
+HW 2
+
+PART 1:
+  Pseudo Code and Justification of Runtime O(m + n) 
+
+  Definitions: 
+  MessageTime {
+    Device; // target device to send message to
+    TimeOfExchange;
+    HasBeenTraversed; 
+  }
+    Devices {
+    list of Devices
+  }
+    DeviceAdjacencyList {
+    list of list of MessageTimes
+    // first index indicates device, second dimension index (list) indicates MessageTImes for first dimension index (device)
+  }
+  Trace {
+    dev1; 
+    dev2; 
+    time; 
+  } 
+
+  m = number of devices
+  n = number of traces
+
+  O(m)
+  for (number of devices from file)
+    add empty (marked unvisited) device to Devices list
+
+  O(n)
+  for (number of traces from file)
+  {
+    add (dev2, time) to end of LL at DeviceAdjacencyList[dev1]; 
+    add (dev1, time) to end of LL at DeviceAdjacencyList[dev2]; 
+  }   
+
+  O(n)
+  // status can be SUCCESS or FAILURE
+  // note: before calling this algorithm, startDev is marked as visited
+  status findPath(startDev, endDev, currentTime, endTime)
+  {
+
+    if (currentTime > endTime)
+      return FAILURE; 
+
+    if (startDev == endDev)
+      add startDev and current time to solution list
+      return SUCCESS; 
+
+    // look at the MessageTime list
+    localMTList = DeviceAdjacencyList[startDev]
+
+    for (each element of localMTList that has not yet been traversed)
+    {
+      if (transmission time of current element of localMTList is greater than or equal to the end time)
+      {
+        if (the device to be transmitted to has not yet been visited, AND, the MessageTime edge has not been used for traversal yet)
+        {
+          // recursively call findPath with information from first element of localMTList (FElocalMTList)
+
+          mark Device to transmit to as visited
+          mark MessageTime edge used to traverse to Device as traversed
+          status = findPath(FElocalMTList.devToTransmitTo, endDev, FFlocalMTList.TimeToTransmit, endTime); 
+          if (status == SUCCESS)
+          {
+            add startDev and current time to solution list
+            return SUCCESS;
+          }
+        }
+      }
+    }
+    // by now, no paths from this startID have led to the endID
+    // i.e. this device is not connected to the target device by valid traces
+    // mark the device as unvisited so we can visit it again in another iteration if there is a untraversed MessageTime edge pointing to it
+    mark startID device as unvisited
+    return FAILURE; 
+  }
+
+  the first two for loops are O(m) (adding an element to an array by indexed access is done in constant time) and O(n) (adding to the end of a linkked list is done in constant time), and the sum of the two is O(m + n)
+
+  The findPaths function is O(n), and here is my justification: 
+  
+  We can justify that findPaths is O(n) by observing its call conditions, and termination conditions: 
+    We look at how the algorithm decides which node to examine next. Ultimately, this is done by examining the DeviceAdjacencyList, a Data structure that includes a list of lists that contain MessageTimes: objects that point to connected devices, say when communication happens, and whether the MessageTime has yet been used for traversal. 
+    findPaths is only every called when a valid MessageTime for the current device points to another device, and once MessageTime has been called, it can never be called again. This is the only way that findPaths is recursively called, so the runtime of findPaths is therefore O(number of MessageTimes). This is equivalent to O(1 * number of traces), because two MessageTimes are created for each trace (MessageTimes are directed representations of traces). By definition of big oh, this is equal to O(n)
+       
+      
+  Summing the three run times of the two loops and the recursive algorithm above yields O(m + n) for the total algorithm. 
+
+  As an additional note regarding the solution's time complexity, as implemented in my code, creating a String representative of the solution list is also done in linear time. The "toString" function in SolutionTrace.java examines each element of the solution list once, and appends the values as necessary to a String. in the worst case, the number of elements in the solution list is the same as the number of traces in the input file, so this is done in worst case O(n), where n is the number of traces. 
+
+PART 2: 
+  Proof of Correctness
+
+  We can prove the correctness of this algorithm by proving that a modified DFS will correctly solve the problem of finding a path, and show that our algorithm is in fact a modified DFS. 
+
+  First I will show that DFS will solve this problem: 
+  We know from theorems proved in class that DFS will reach all nodes connected to a source node in a directed acyclic graph. This algorithm essentially creates a graph from the trace file (edges), and traverses it in a way that is directed, and does not contain cycles (because a node (device) is never traversed twice). Essentially, if there exists a directed path from one node to another in a graph, then DFS will find it.
+
+  We still need to show that our algorithm is DFS. I will provide the DFS search algorithm as defined by pseudo code in class, and then show that my algorithm is functionally the same. 
+
+  DFS(u)
+  {
+    Mark u as "Explored" 
+    For each edge (u,v) incident to u
+    {
+      if (v is not explored)
+      DFS(v)
+    }
+  } 
+
+  As shown above in the pseudo code, my algorithm marks the current device as explored. It then checks each "incident" device to the current device. Devices are "incident" if the time to transmit is valid (greater than or equal to the current time), and if the device hasn't been visited. Therefore, by the proved theorems of DFS, all valid "incident" devices will be explored by my algorithm. However, once findPaths returns with a FAILURE status, all traversed devices are then marked to unvisited. This way, a new DFS search can be performed using another MessageTime, to find all connected components from a device that may start at a different time than another search that started at a different time, but returned with failure. 
+
+  In conclusion, my algorithm essentially performs a depth first search for each possible device starting from all start times. Because of this, it will reach all connected components from the start node and eventually determine whether or not a valid trace path exists between two devices. 
